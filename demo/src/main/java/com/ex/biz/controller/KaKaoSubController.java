@@ -84,7 +84,7 @@ public class KaKaoSubController {
 		Map<String,String> input = new HashMap<String,String>();
 		input.put("BRNAME", "판교점");
 		
-		//input.put("BRNAME", "분당");
+		//input.put("BRNAME", "분당점");
 		
 		mvSUB4VO = mvkaKaoSubService.getSumTrAmtByDtbr(input);
 		return mvSUB4VO;
