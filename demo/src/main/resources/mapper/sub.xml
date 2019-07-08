@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+						"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ex.biz.dao.KaKaoSubDao">
+
+	<select id="getSub1VO" resultType="com.ex.biz.model.SUB1VO">
+ 	<![CDATA[
+ 	
+ 	 SELECT X1.YEAR		 AS YEAR	    #기준년울
+		   ,X1.ACNO		 AS ACCTNO		#계좌번호
+		   ,X1.R_TR_AMT  AS SUMAMT		#거래금액합계
+	   FROM (
+			SELECT T1.YEAR		AS YEAR			#기준년울
+				  ,T1.ACNO		AS ACNO			#계좌번호
+				  ,T1.R_TR_AMT  AS R_TR_AMT		#거래금액합계
+				  ,COUNT(*)		AS R_RANK		#순위
+			  FROM (
+					SELECT SUBSTR(T1.TR_DT,1,4) AS YEAR
+						  ,ACNO					AS ACNO
+						  ,SUM(TR_AMT - TR_FEE) AS R_TR_AMT
+					  FROM tr_info T1	#거래내역
+					 WHERE 1=1
+					   AND IFNULL(T1.CAN_YN,'N') != 'Y'
+					 GROUP 
+						BY SUBSTR(T1.TR_DT,1,4)
+						  ,ACNO
+					)  T1
+			  JOIN (
+					SELECT SUBSTR(T1.TR_DT,1,4) AS YEAR
+						  ,ACNO					AS ACNO
+						  ,SUM(TR_AMT - TR_FEE) AS R_TR_AMT
+					  FROM tr_info T1	#거래내역
+					 WHERE 1=1
+					   AND IFNULL(T1.CAN_YN,'N') != 'Y'
+					 GROUP 
+						BY SUBSTR(T1.TR_DT,1,4)
+						  ,ACNO
+					)  T2
+				ON (T1.R_TR_AMT,T1.YEAR) <=  (T2.R_TR_AMT,T2.YEAR)
+			   AND T1.YEAR = T2.YEAR
+			 GROUP 
+				BY T1.YEAR
+				  ,T1.ACNO
+				  ,T1.R_TR_AMT
+	     ) X1
+	WHERE 1=1
+	  AND X1.R_RANK = 1
+ 	]]> 
+	</select>
+	
+	<select id="getSub2VO" resultType="com.ex.biz.model.SUB2VO">
+ 	<![CDATA[
+ 	
+	SELECT X.TRNS_YEAR		AS YEAR			#기준년
+		  ,X.ACNO			AS ACNO			#계좌번호
+	      ,X.ACNO_NM		AS ACNO_NM		#계좌명
+	FROM (SELECT '2018' AS TRNS_YEAR
+				, ACNO
+				, ACNO_NM
+			FROM ACNO_INFO 
+			UNION 
+			SELECT '2019' AS TRNS_YEAR
+				  , ACNO
+				  , ACNO_NM
+			FROM ACNO_INFO) X
+			LEFT JOIN (SELECT C.TRNS_YEAR
+							 ,C.ACNO
+							 ,C.ACNO_NM
+						FROM (SELECT SUBSTR(B.TR_DT,1,4) AS TRNS_YEAR
+									, A.ACNO
+									, A.ACNO_NM
+							 FROM ACNO_INFO A, TR_INFO B
+							 WHERE A.ACNO = B.ACNO
+							 AND SUBSTR(B.TR_DT,1,4) IN ('2019','2018')
+							 AND IFNULL(B.CAN_YN,'N') != 'Y'
+							) C
+						GROUP BY C.TRNS_YEAR, C.ACNO, C.ACNO_NM ) Y
+			ON X.TRNS_YEAR = Y.TRNS_YEAR
+			AND X.ACNO = Y.ACNO
+			AND X.ACNO_NM = Y.ACNO_NM
+			WHERE Y.TRNS_YEAR IS NULL
+       
+ 	]]> 
+	</select>
+	
+	<select id="getSub3VO" resultType="com.ex.biz.model.SUB3VO">
+ 	<![CDATA[
+ 	
+ 		SELECT 
+			   T1.MNG_DTBR_CD							AS MNG_DTBR_CD
+			  ,(SELECT MNG_DTBR_NM
+				  FROM mng_dtbr_info X1	#관리부팀점정보
+				 WHERE 1=1
+				   AND T1.MNG_DTBR_CD = X1.MNG_DTBR_CD
+				)   									AS MNG_DTBR_NM		
+			  ,T1.R_TR_AMT								AS R_TR_AMT
+			  #,COUNT(*)									AS R_RANK
+		  FROM (
+				SELECT SUBSTR(T1.TR_DT,1,4) AS YEAR
+					  ,T2.MNG_DTBR_CD		AS MNG_DTBR_CD
+					  ,SUM(TR_AMT - TR_FEE) AS R_TR_AMT
+				  FROM tr_info T1	#거래내역
+				  LEFT OUTER JOIN acno_info T2	#계좌정보
+					ON ( T1.ACNO = T2.ACNO)
+				  JOIN mng_dtbr_info T3
+					ON (T2.MNG_DTBR_CD = T3.MNG_DTBR_CD)
+				 WHERE 1=1
+				   AND IFNULL(T1.CAN_YN,'N') != 'Y'
+				 GROUP 
+					BY SUBSTR(T1.TR_DT,1,4)
+					  ,T2.MNG_DTBR_CD
+				)  T1
+		  JOIN (
+				SELECT SUBSTR(T1.TR_DT,1,4) AS YEAR
+					  ,T2.MNG_DTBR_CD		AS MNG_DTBR_CD
+					  ,SUM(TR_AMT - TR_FEE) AS R_TR_AMT
+				  FROM tr_info T1
+				  LEFT OUTER JOIN acno_info T2	#거래내역
+					ON ( T1.ACNO = T2.ACNO)
+				  JOIN mng_dtbr_info T3	#계좌정보
+					ON (T2.MNG_DTBR_CD = T3.MNG_DTBR_CD)
+				 WHERE 1=1
+				   AND IFNULL(T1.CAN_YN,'N') != 'Y'
+				 GROUP 
+					BY SUBSTR(T1.TR_DT,1,4)
+					  ,T2.MNG_DTBR_CD
+				)  T2
+			ON (T1.R_TR_AMT,T1.YEAR) <=  (T2.R_TR_AMT,T2.YEAR)
+		   AND T1.YEAR = T2.YEAR
+		   AND T1.YEAR = #{BASE_YYYY} 
+		 GROUP 
+			BY T1.YEAR
+			  ,T1.MNG_DTBR_CD
+			  ,T1.R_TR_AMT
+		ORDER BY T1.YEAR ASC
+			,COUNT(*)	 ASC
+ 	]]> 
+	</select>
+	
+	<select id="getSub4VO" resultType="com.ex.biz.model.SUB4VO">
+ 	<![CDATA[
+ 	SELECT T3.MNG_DTBR_CD					AS BRNAME	#관리지점코드
+	      ,MAX(T3.MNG_DTBR_NM)  			AS BRCODE	#관리지점명
+	      ,SUM(T1.TR_AMT - T1.TR_FEE)		AS SUMAMT	#거래금액합계
+	  FROM tr_info T1	#거래내역
+	  LEFT OUTER jOIN
+	       acno_info T2 #계좌정보
+		ON (T1.ACNO = T2.ACNO)
+	  LEFT OUTER JOIN
+		   mng_dtbr_info T3 #관리부점저옵
+	    ON (T2.MNG_DTBR_CD = T3.MNG_DTBR_CD)
+	 WHERE 1=1
+	   AND IFNULL(T1.CAN_YN,'N') != 'Y'
+	   AND T3.MNG_DTBR_NM =  #{BRNAME} 
+	 GROUP 
+	   BY T3.MNG_DTBR_CD
+ 	]]> 
+	</select>
+	
+	<select id="getChkSub4VO" resultType="com.ex.biz.model.SUB4VO">
+ 	<![CDATA[
+ 	SELECT MNG_DTBR_NM	AS BRNAME
+	  FROM mng_dtbr_info T1 #관리점정보
+	 WHERE 1=1
+	   AND T1.MNG_DTBR_NM =  #{BRNAME} 
+ 	]]> 
+	</select>
+	
+</mapper>
